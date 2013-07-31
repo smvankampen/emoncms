@@ -41,19 +41,23 @@ class Feed
         {
           $feedname = "feed_".$feedid;
 
-          if ($datatype!=3) {										
+         if ( ($datatype==3) || ($datatype==4) || ($datatype==5) ) 
+         {										
+            $result = $this->mysqli->query(										
+            "CREATE TABLE $feedname (
+	      time INT UNSIGNED, data float, data2 float,
+            INDEX ( `time` ))");
+          }
+
+
+          if ($datatype!=3) 
+          {										
             $result = $this->mysqli->query(
             "CREATE TABLE $feedname (
 	      time INT UNSIGNED, data float,
             INDEX ( `time` ))");
           }
 
-          if ($datatype==3) {										
-            $result = $this->mysqli->query(										
-            "CREATE TABLE $feedname (
-	      time INT UNSIGNED, data float, data2 float,
-            INDEX ( `time` ))");
-          }
 
           return array('success'=>true, 'feedid'=>$feedid);										
         } else return array('success'=>false);

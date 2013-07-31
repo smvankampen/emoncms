@@ -225,6 +225,31 @@ class Process
         DataType::UNDEFINED
       );
       
+      $list[27] = array(
+        _("daily feed"),
+        ProcessArg::FEEDID,
+        "daily_feed",
+        2,
+        DataType::DAILY
+      );
+      
+      $list[28] = array(
+        _("hourly feed"),
+        ProcessArg::FEEDID,
+        "hourly_feed",
+        2,
+        DataType::HOURLY
+      );
+      
+      $list[29] = array(
+        _("minute feed"),
+        ProcessArg::FEEDID,
+        "minute_feed",
+        2,
+        DataType::MINUTE
+      );
+      
+      
       return $list;
     }
 
@@ -470,7 +495,17 @@ class Process
 
       if (!$row)
       {
-        $this->mysqli->query("INSERT INTO $feedname (time,data,data2) VALUES ('$time','0','$value')");
+		$this->mysqli->query("INSERT INTO $feedname (time,data,data2) VALUES ('$time','0','$value')");
+		// update yesterday's value if exists to make a conclusive logging.
+		$yesterday = $time - 86400; //24h * 60m * 60s
+		$result = $this->mysqli->query("SELECT * FROM $feedname WHERE `time` = '$yesterday'");
+		$row = $result->fetch_array();
+		if($row) // logging of yesterday exists.
+		{
+			$kwh_yesterday = $value - $row['data2'];
+			$this->mysqli->query("UPDATE $feedname SET data = '$kwh_yesterday' WHERE `time` = '$yesterday'");
+		}
+		
       }
       else
       {
@@ -483,6 +518,82 @@ class Process
       $this->mysqli->query("UPDATE feeds SET value = '$kwh_today', time = '$updatetime', datatype = '2' WHERE id='$feedid'");
 
       return $value;
+    }
+
+	//--------------------------------------------------------------------------------
+    // Period feeds to aggregate feeds. (same as kwh_to_kwhd2, but generalized)
+    //--------------------------------------------------------------------------------
+	public function time_feed($type, $feedid, $time_now, $value)
+	{
+		switch ($type) 
+		{
+			case 0: // minute
+				$time = mktime(date("H",$time_now), date("i",$time_now), 0, date("m",$time_now), date("d",$time_now), date("Y",$time_now));
+				$prev_time = $time - 60; //60s
+				break;
+			case 1:	// hour
+				$time = mktime(date("H",$time_now), 0, 0, date("m",$time_now), date("d",$time_now), date("Y",$time_now));
+				$prev_time = $time - 3600; //60m * 60s
+				break;
+			case 2:	// day
+			default:
+				$time = mktime(0, 0, 0, date("m",$time_now), date("d",$time_now), date("Y",$time_now));
+				$prev_time = $time - 86400; //24h * 60m * 60s
+				break;
+		}
+		
+		$feedname = "feed_".trim($feedid)."";
+		$result = $this->mysqli->query("SELECT * FROM $feedname WHERE `time` = '$time'");
+		$row = $result->fetch_array();
+
+		if (!$row)
+		{
+			$this->mysqli->query("INSERT INTO $feedname (time,data,data2) VALUES ('$time','0','$value')");
+			
+			// update prev_time value if exists to make a conclusive logging.
+			$result = $this->mysqli->query("SELECT * FROM $feedname WHERE `time` = '$prev_time'");
+			$row = $result->fetch_array();
+			if($row) // logging of previous time exists.
+			{
+				$prev_value = $value - $row['data2'];
+				$this->mysqli->query("UPDATE $feedname SET data = '$prev_value' WHERE `time` = '$prev_time'");
+			}
+		}
+		else
+		{
+			$value_start = $row['data2'];
+			$value_time = $value - $value_start;
+			$this->mysqli->query("UPDATE $feedname SET data = '$value_time' WHERE `time` = '$time'");
+		}
+
+		$updatetime = date("Y-n-j H:i:s", $time_now);
+		$this->mysqli->query("UPDATE feeds SET value = '$value_time', time = '$updatetime', datatype = '2' WHERE id='$feedid'");
+
+		return $value;	
+	}
+
+	//--------------------------------------------------------------------------------
+    // daily feed 
+    //--------------------------------------------------------------------------------
+	public function daily_feed($feedid, $time_now, $value)
+    {
+		return $this->time_feed(2,$feedid,$time_now,$value);
+    }
+
+	//--------------------------------------------------------------------------------
+    // hourly feed
+    //--------------------------------------------------------------------------------
+	public function hourly_feed($feedid, $time_now, $value)
+    {
+		return $this->time_feed(1,$feedid,$time_now,$value);
+    }
+    
+    //--------------------------------------------------------------------------------
+    // minute feed
+    //--------------------------------------------------------------------------------
+	public function minute_feed($feedid, $time_now, $value)
+    {
+		return $this->time_feed(0,$feedid,$time_now,$value);
     }
 
     //--------------------------------------------------------------------------------

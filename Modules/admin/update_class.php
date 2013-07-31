@@ -12,6 +12,8 @@ class DataType {
   const REALTIME = 1;
   const DAILY = 2;
   const HISTOGRAM = 3;
+  const HOURLY = 4;
+  const MINUTE = 5;
 }
 
 class Update

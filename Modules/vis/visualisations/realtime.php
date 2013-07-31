@@ -19,7 +19,9 @@
         <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
         <script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.min.js"></script>
         <script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.time.min.js"></script>
-        <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/api.js"></script>
+        <script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.tooltip.min.js"></script>
+        <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/api.js"></script>
+        
     </head>
     <body>
     
@@ -30,7 +32,7 @@
 <h2>Realtime data: <?php echo $feedidname; ?></h2>
 <?php } ?>
 
- <div id="graph_bound" style="height:400px; width:100%; position:relative; ">
+ <div id="graph_bound" style="height:600px; width:100%; position:relative; ">
    <div id="graph"></div>
    <div style="position:absolute; top:20px; right:20px;">
      <button class="viewWindow" time="1.0">1 <?php echo _('hour') ?></button>
@@ -79,21 +81,26 @@
    function vis_feed_data()
    {
      //fetch async to not block
-     get_feed_data_async(feedid,start,end,2, function(response){
+     get_feed_data_async(feedid,start,end,200, function(response){
         data = response;
         plot();
         //start new loop 2sec after we got the async response through the callback
-        setTimeout(loop, 2000);
+        setTimeout(loop, 10000);
      });
    }
   
    function plot()
    {
      $.plot(graph,
-       [{data: data, lines: { fill: true }}],
+       [{data: data, lines: { show: true }}],
        {xaxis: { mode: "time", localTimezone: true},
-       //grid: { show: true, hoverable: true, clickable: true },
-       selection: { mode: "xy" }
+       grid: { show: true, hoverable: true, clickable: true },
+       selection: { mode: "x" },
+       curvedLines: { show: true, lineWidth: 4 },
+       tooltip: true,
+          tooltipOpts: {
+            content: "%x | %y"
+          }
      });
    }
 
